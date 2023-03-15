@@ -1,10 +1,10 @@
 {
   "twrp_url": "https://github.com/minimal-manifest-twrp/platform_manifest_twrp_omni.git",
   "twrp_branch": "twrp-6.0",
-  "git_username": "Abstructor",
+  "git_username": "Socketlike",
   "git_email": "36399055+Abstructor@users.noreply.github.com",
   "use_own_dt": true,
-  "dt_url": "Abstructor/twrp_device_aio_ap",
+  "dt_url": "Socketlike/twrp_device_aio_ap",
   "dt_branch": "main",
   "dt_remote": "github",
   "dt_path": "device/LENOVO/aio_ap",
