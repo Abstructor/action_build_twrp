@@ -108,7 +108,7 @@ jobs:
       run: cp repair/omni-9.0/busybox.xml workspace/.repo/local_manifests/
     -
       name: Set device code name
-      run: echo "CODE_NAME=$(echo ${{ inputs.device_code }} | sed "s/.*\///")" >> $GITHUB_ENV
+      run: echo "CODE_NAME=$(echo ${{ inputs.device_tree_path }} | sed "s/.*\///")" >> $GITHUB_ENV
     -
       name: Set device tree
       run: |
