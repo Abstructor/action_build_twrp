@@ -22,22 +22,13 @@ on:
         required: true
         type: string
       device_tree_path:
-        description: Device tree path (formatted as VENDOR/codename)
+        description: Device tree path (formatted as VENDOR/codename). Code name is ro.product.name
         required: true
-        type: string
-      device_tree_remote:
-        description: Device tree remote (github, etc...)
-        required: false
-        default: github
         type: string
       device_tree_branch:
         description: Device tree branch
         required: false
         default: main
-        type: string
-      device_code:
-        description: Device code name (ro.product.name)
-        required: true
         type: string
       repair_manifest:
         description: Use repair manifest
@@ -116,11 +107,14 @@ jobs:
       if: steps.var.outputs.use_repair_manifest == 'true' && steps.var.outputs.fix_busybox == 'true'
       run: cp repair/omni-9.0/busybox.xml workspace/.repo/local_manifests/
     -
+      name: Set device code name
+      run: echo "CODE_NAME=$(echo ${{ inputs.device_code }} | sed "s/.*\///")" >> $GITHUB_ENV
+    -
       name: Set device tree
       run: |
         sed -i 's!dt_url!${{ inputs.device_tree }}!g' device.xml
         sed -i 's!dt_path!${{ inputs.device_tree_path }}!g' device.xml
-        sed -i 's!dt_remote!${{ inputs.device_tree_remote }}!g' device.xml
+        sed -i 's!dt_remote!github!g' device.xml
         sed -i 's!dt_branch!${{ inputs.device_tree_branch }}!g' device.xml
         cp device.xml workspace/.repo/local_manifests/ 
     -
@@ -136,7 +130,7 @@ jobs:
       run: |
         cd $CWD/build/core
         rm -rf product_config.mk
-        sed -i 's!device_code!${{ inputs.device_code }}!g' $CWD/../build/core/${{ inputs.repair_manifest_branch }}/product_config.mk
+        sed -i "s!device_code!$CODE_NAME!g" $CWD/../build/core/${{ inputs.repair_manifest_branch }}/product_config.mk
         cp $CWD/../build/core/${{ inputs.repair_manifest_branch }}/product_config.mk $CWD/build/core/product_config.mk
     -
       name: Start building
@@ -146,7 +140,7 @@ jobs:
         tree ./device
         export ALLOW_MISSING_DEPENDENCIES=true
         source build/envsetup.sh
-        lunch $(if [ ${{ inputs.branch }} == "omni" ]; then echo 'omni_'; fi)${{ inputs.device_code }}-eng
+        lunch $(if [ ${{ inputs.branch }} == "omni" ]; then echo 'omni_'; fi)$CODE_NAME-eng
         make clean
         make recoveryimage -j$(nproc --all)
     - name: Get date
@@ -157,8 +151,8 @@ jobs:
       name: Upload release
       uses: softprops/action-gh-release@v1
       with:
-        files: workspace/out/target/product/${{ inputs.device_code }}/recovery.img
-        name: TWRP for ${{ input.device_code }} (${{ steps.time.outputs.date }})
+        files: workspace/out/target/product/${{ env.CODE_NAME }}/recovery.img
+        name: TWRP for ${{ env.CODE_NAME }} (${{ steps.time.outputs.date }})
         tag_name: ${{ github.run_id }}
         body: TWRP recovery build finished at ${{ steps.time.outputs.date }}
       env:
