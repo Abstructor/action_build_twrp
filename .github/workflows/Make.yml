@@ -1,21 +1,80 @@
 name: Make Recovery
 
 on:
-  watch:
-    types: [started]
-    
+  workflow_dispatch:
+    inputs:
+      manifest:
+        description: Manifest to use when building TWRP
+        required: true
+        default: omni
+        type: choice
+        options:
+          - omni
+          - aosp
+          - lineageos
+      branch:
+        description: Manifest branch to use
+        required: true
+        default: ''
+        type: string
+      device_tree:
+        description: Device tree repository (username/reponame)
+        required: true
+        type: string
+      device_tree_path:
+        description: Device tree path (formatted as VENDOR/codename)
+        required: true
+        type: string
+      device_tree_remote:
+        description: Device tree remote (github, etc...)
+        required: false
+        default: github
+        type: string
+      device_tree_branch:
+        description: Device tree branch
+        required: false
+        default: main
+        type: string
+      device_code:
+        description: Device code name (ro.product.name)
+        required: true
+        type: string
+      repair_manifest:
+        description: Use repair manifest
+        required: false
+        default: false
+        type: boolean
+      repair_manifest_branch:
+        description: Repair manifest branch
+        required: false
+        default: android-10.0
+        type: string
+      fix_missing_common:
+        description: Fix missing common
+        required: false
+        default: false
+        type: boolean
+      fix_product:
+        description: Fix "cannot locate product"
+        required: false
+        default: false
+        type: boolean
+      fix_busybox:
+        description: Fix busybox
+        required: false
+        default: false
+        type: boolean
+        
 jobs:
   build:
-    if: github.event.repository.owner.id == github.event.sender.id
     runs-on: ubuntu-18.04
-    
     steps:
-    - name: Check Out
-      uses: actions/checkout@main
-      
-    - name: Clean Up
+    - 
+      name: Check out GitHub repository
+      uses: actions/checkout@main 
+    -
+      name: Clean up
       run: |
-        echo "Wait for a while."
         docker rmi `docker images -q`
         sudo rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/sudo apt/sources.list.d
         sudo apt -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* mysql* php*
@@ -23,121 +82,84 @@ jobs:
         sudo apt -y autoclean
         sudo apt clean
         sudo apt update
-      
-    - name: Install packages
+    -
+      name: Install packages
       run: |
         sudo apt -y upgrade
-        
-    - name: Install required packages
-      run: sudo apt -y install git-core gnupg flex bison gperf build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev tree lib32z-dev libgl1-mesa-dev libxml2-utils xsltproc unzip jq bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev libssl-dev libwxgtk3.0-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev imagemagick libbz2-dev libssl-dev lzma ncftp bash-completion python openjdk-8-jdk qemu-user-static
-      
-    - name: Set variables
-      run: |
-        echo "::set-output name=twrp_url::$(jq -r '.twrp_url' config.json)"
-        echo "::set-output name=twrp_branch::$(jq -r '.twrp_branch' config.json)"
-        echo "::set-output name=git_username::$(jq -r '.git_username' config.json)"
-        echo "::set-output name=git_email::$(jq -r '.git_email' config.json)"
-        echo "::set-output name=use_own_dt::$(jq -r '.use_own_dt' config.json)"
-        echo "::set-output name=dt_url::$(jq -r '.dt_url' config.json)"
-        echo "::set-output name=dt_remote::$(jq -r '.dt_remote' config.json)"
-        echo "::set-output name=dt_branch::$(jq -r '.dt_branch' config.json)"
-        echo "::set-output name=dt_path::$(jq -r '.dt_path' config.json)"
-        echo "::set-output name=device_code::$(jq -r '.device_code' config.json)"
-        echo "::set-output name=use_repair_manifest::$(jq -r '.use_repair_manifest' config.json)"
-        echo "::set-output name=fix_product::$(jq -r '.fix_product' config.json)"
-        echo "::set-output name=fix_misscom::$(jq -r '.fix_misscom' config.json)"
-        echo "::set-output name=fix_busybox::$(jq -r '.fix_busybox' config.json)"
-        echo "::set-output name=fix_branch::$(jq -r '.fix_branch' config.json)"
-        echo "::set-output name=use_omin_head::$(jq -r '.use_omin_head' config.json)"
-        echo "::set-output name=date::$(date +%F)"
-      id: var
-      
-    - name: Install Repo
+        sudo apt -y install git-core gnupg flex bison gperf build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev tree lib32z-dev libgl1-mesa-dev libxml2-utils xsltproc unzip jq bc bison build-essential ccache curl flex g++-multilib gcc-multilib git gnupg gperf lib32ncurses5-dev lib32readline-dev lib32z1-dev liblz4-tool libncurses5-dev libsdl1.2-dev libssl-dev libwxgtk3.0-dev libxml2 libxml2-utils lzop pngcrush rsync schedtool squashfs-tools xsltproc zip zlib1g-dev imagemagick libbz2-dev libssl-dev lzma ncftp bash-completion python openjdk-8-jdk qemu-user-static
+    -
+      name: Install the Repo tool
       run: |
         mkdir ~/bin
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
         export PATH=~/bin:$PATH
-        
-    - name: Initialize Repair Manifest
-      if: steps.var.outputs.use_repair_manifest == 'true'
+    - 
+      name: Checkout Repair Manifest
+      if: ${{ input.repair_manifest == true }}
       run: git clone https://github.com/TeamWin/buildtree_manifests.git repair/
-      
-    - name: Initialize a Repo client
+    -
+      name: Initialize Repo
       run: |
-        echo "The automatic repair option is turned off, so the Repair Manifest will not be pulled."
         PATH=~/bin:$PATH
         mkdir workspace
         cd workspace
-        echo "::set-output name=pwd::$(pwd)"
-        git config --global user.name "${{ steps.var.outputs.git_username }}"
-        git config --global user.email "${{ steps.var.outputs.git_email }}"
-        repo init --depth=1 -u ${{ steps.var.outputs.twrp_url }} -b ${{ steps.var.outputs.twrp_branch }}
+        echo "CWD=$(pwd)" >> $GITHUB_ENV
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_${{ inputs.manifest }}.git -b ${{ inputs.branch }}
         mkdir .repo/local_manifests
-      id: pwd
-      
-    - name: Fix the bug of missing common
-      if: steps.var.outputs.use_repair_manifest == 'true' && steps.var.outputs.fix_misscom == 'true'
+    -
+      name: Fix missing common
+      if: ${{ inputs.repair_manifest == true && inputs.fix_missing_common == true }}
       run: cp repair/omni-9.0/qcom.xml workspace/.repo/local_manifests/
-      
-    - name: Fix busybox bug
+    -
+      name: Fix busybox
       if: steps.var.outputs.use_repair_manifest == 'true' && steps.var.outputs.fix_busybox == 'true'
       run: cp repair/omni-9.0/busybox.xml workspace/.repo/local_manifests/
-      
-    - name: Clone your own device tree
-      if: steps.var.outputs.use_own_dt == 'true'
+    -
+      name: Set device tree
       run: |
-        sed -i 's!dt_url!${{ steps.var.outputs.dt_url }}!g' device.xml
-        sed -i 's!dt_path!${{ steps.var.outputs.dt_path }}!g' device.xml
-        sed -i 's!dt_remote!${{ steps.var.outputs.dt_remote }}!g' device.xml
-        sed -i 's!dt_branch!${{ steps.var.outputs.dt_branch }}!g' device.xml
+        sed -i 's!dt_url!${{ inputs.device_tree }}!g' device.xml
+        sed -i 's!dt_path!${{ inputs.device_tree_path }}!g' device.xml
+        sed -i 's!dt_remote!${{ inputs.device_tree_remote }}!g' device.xml
+        sed -i 's!dt_branch!${{ inputs.device_tree_branch }}!g' device.xml
         cp device.xml workspace/.repo/local_manifests/ 
-          
-    - name: Sync from manifest
+    -
+      name: Sync from manifest
       run: |
         PATH=~/bin:$PATH
         cd workspace
         repo sync -j$(nproc --all) -f --force-sync
         ls -al
-        
-    - name: Fix cannot locate product
-      if: steps.var.outputs.use_repair_manifest == 'true' && steps.var.outputs.fix_product == 'true'
+    -
+      name: Fix "cannot locate product"
+      if: ${{ inputs.repair_manifest == true && inputs.fix_product == true }}
       run: |
-        cd ${{ steps.pwd.outputs.pwd }}/build/core
+        cd $CWD/build/core
         rm -rf product_config.mk
-        sed -i 's!device_code!${{ steps.var.outputs.device_code }}!g' ${{ steps.pwd.outputs.pwd }}/../build/core/${{ steps.var.outputs.fix_branch }}/product_config.mk
-        cp ${{ steps.pwd.outputs.pwd }}/../build/core/${{ steps.var.outputs.fix_branch }}/product_config.mk ${{ steps.pwd.outputs.pwd }}/build/core/product_config.mk
-      
-    - name: Start Building (Normal Mode)
-      if: steps.var.outputs.use_omin_head == 'false'
+        sed -i 's!device_code!${{ inputs.device_code }}!g' $CWD/../build/core/${{ inputs.repair_manifest_branch }}/product_config.mk
+        cp $CWD/../build/core/${{ inputs.repair_manifest_branch }}/product_config.mk $CWD/build/core/product_config.mk
+    -
+      name: Start building
       run: |
         PATH=~/bin:$PATH
-        cd ${{ steps.pwd.outputs.pwd }}
+        cd $CWD
         tree ./device
         export ALLOW_MISSING_DEPENDENCIES=true
         source build/envsetup.sh
-        lunch ${{ steps.var.outputs.device_code }}-eng 
+        lunch $(if [ ${{ inputs.branch }} == "omni" ]; then echo 'omni_'; fi)${{ inputs.device_code }}-eng
         make clean
         make recoveryimage -j$(nproc --all)
-        
-    - name: Start Building (Omni Mode)
-      if: steps.var.outputs.use_omin_head == 'true'
+    - name: Get date
       run: |
-        PATH=~/bin:$PATH
-        cd ${{ steps.pwd.outputs.pwd }}
-        tree ./device
-        export ALLOW_MISSING_DEPENDENCIES=true
-        source build/envsetup.sh
-        lunch omni_${{ steps.var.outputs.device_code }}-eng 
-        make clean
-        make recoveryimage -j$(nproc --all)            
-      
-    - name: Upload File to Release
+        echo date=\"$(date +"%D at %r")\" >> $GITHUB_OUTPUT
+      id: time
+    -
+      name: Upload release
       uses: softprops/action-gh-release@v1
       with:
-        files: workspace/out/target/product/${{ steps.var.outputs.device_code }}/recovery.img
-        name: ${{ steps.var.outputs.date }} ${{ steps.var.outputs.device_code }} by ${{ steps.var.outputs.git_username }}
+        files: workspace/out/target/product/${{ inputs.device_code }}/recovery.img
+        name: TWRP for ${{ input.device_code }} (${{ steps.time.outputs.date }})
         tag_name: ${{ github.run_id }}
-        body: TWRP Recovery built by ${{ steps.var.outputs.git_username }}
+        body: TWRP recovery build finished at ${{ steps.time.outputs.date }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
