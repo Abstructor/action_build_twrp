@@ -138,7 +138,7 @@ jobs:
         tree ./device
         export ALLOW_MISSING_DEPENDENCIES=true
         source build/envsetup.sh
-        lunch $(if [ ${{ inputs.branch }} == "omni" ]; then echo 'omni_'; fi)$CODE_NAME-eng
+        lunch $(if [ ${{ inputs.manifest }} == "omni" ]; then echo 'omni_'; fi)$CODE_NAME-eng
         make clean
         make recoveryimage -j$(nproc --all)
     - name: Get date
