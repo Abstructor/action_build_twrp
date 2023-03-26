@@ -84,7 +84,7 @@ jobs:
         mkdir ~/bin
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
-        export PATH=~/bin:$PATH
+        echo "PATH=~/bin:$PATH" >> $GITHUB_ENV
     - 
       name: Checkout Repair Manifest
       if: ${{ inputs.repair_manifest == true }}
@@ -92,7 +92,6 @@ jobs:
     -
       name: Initialize Repo
       run: |
-        PATH=~/bin:$PATH
         mkdir workspace
         cd workspace
         echo "CWD=$(pwd)" >> $GITHUB_ENV
@@ -113,14 +112,13 @@ jobs:
       name: Set device tree
       run: |
         sed -i 's!dt_url!${{ inputs.device_tree }}!g' device.xml
-        sed -i 's!dt_path!${{ inputs.device_tree_path }}!g' device.xml
+        sed -i 's!dt_path!device/${{ inputs.device_tree_path }}!g' device.xml
         sed -i 's!dt_remote!github!g' device.xml
         sed -i 's!dt_branch!${{ inputs.device_tree_branch }}!g' device.xml
         cp device.xml workspace/.repo/local_manifests/ 
     -
       name: Sync from manifest
       run: |
-        PATH=~/bin:$PATH
         cd workspace
         repo sync -j$(nproc --all) -f --force-sync
         ls -al
