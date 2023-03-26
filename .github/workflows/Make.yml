@@ -87,7 +87,7 @@ jobs:
         export PATH=~/bin:$PATH
     - 
       name: Checkout Repair Manifest
-      if: ${{ input.repair_manifest == true }}
+      if: ${{ inputs.repair_manifest == true }}
       run: git clone https://github.com/TeamWin/buildtree_manifests.git repair/
     -
       name: Initialize Repo
